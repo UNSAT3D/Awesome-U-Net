@@ -40,20 +40,16 @@ class SegPC2021Dataset(Dataset):
         INPUT_SIZE = self.input_size
         ADD = self.data_dir
         
-#         build_segpc_dataset(
-#             input_size = self.input_size,
-#             scale = self.scale,
-#             data_dir = self.data_dir,
-#             dataset_dir = self.dataset_dir,
-#             mode = self.mode,
-#             force_rebuild = force_rebuild,
-#         )
-        
-        print(f'loading X_{self.mode}...')
         self.X = np.load(f'{ADD}/cyts_{self.mode}_{self.input_size}x{self.input_size}_s{self.scale}_X.npy')
-        print(f'loading Y_{self.mode}...')
         self.Y = np.load(f'{ADD}/cyts_{self.mode}_{self.input_size}x{self.input_size}_s{self.scale}_Y.npy')
-        print('finished.')
+
+        # fix issue with data being uint8 while weights are float32
+        self.X = self.X.astype(np.float32)
+        self.Y = self.Y.astype(np.float32)
+
+        # fix issue with data being channels last while model expects channels first
+        self.X = np.moveaxis(self.X, -1, 1)
+        self.Y = np.moveaxis(self.Y, -1, 1)
 
 
     def __len__(self):
@@ -64,6 +60,8 @@ class SegPC2021Dataset(Dataset):
         img = self.X[idx]
         msk = self.Y[idx]
         msk = np.where(msk<0.5, 0, 1)
+        # fix issue with mask not being a tensor
+        msk = torch.from_numpy(msk)
 
         if self.img_transform:
             img = self.img_transform(img)
